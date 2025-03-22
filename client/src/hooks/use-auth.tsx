@@ -24,14 +24,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { data: user, isLoading, error } = useQuery<User | null, Error>({
     queryKey: ['auth'],
     queryFn: () => {
-      return new Promise((resolve) => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-          unsubscribe();
-          resolve(user);
-        });
+      return new Promise((resolve, reject) => {
+        try {
+          const unsubscribe = onAuthStateChanged(
+            auth, 
+            (user) => {
+              unsubscribe();
+              resolve(user);
+            },
+            (error) => {
+              unsubscribe();
+              console.error("Auth state error:", error);
+              // Don't reject, just resolve with null to continue the app flow
+              resolve(null);
+            }
+          );
+        } catch (err) {
+          console.error("Failed to set up auth state listener:", err);
+          // Don't reject, just resolve with null to allow the app to load anyway
+          resolve(null);
+        }
       });
     },
     staleTime: Infinity,
+    retry: false, // Don't retry on failure
+    refetchOnWindowFocus: false, // Don't refetch when window gets focus
   });
 
   const value = {

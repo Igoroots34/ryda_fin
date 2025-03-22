@@ -9,7 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { signInWithGoogle, loginWithEmail, registerWithEmail, checkRedirectResult } from "@/lib/firebase";
 import { User } from "firebase/auth";
-import { Wallet } from "lucide-react";
+import { Wallet, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Login = () => {
   const [location, setLocation] = useLocation();
@@ -30,8 +31,10 @@ const Login = () => {
   
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [isFirebaseAvailable, setIsFirebaseAvailable] = useState<boolean>(true);
   
-  // Verificar resultado de redirecionamento quando a página carrega
+  // Check redirect result when page loads
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -40,10 +43,18 @@ const Login = () => {
         if (user) {
           handleAuthSuccess(user);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error checking redirect result:", error);
-        // Evitar usar toast dentro do useEffect inicial
-        console.error("Failed to complete Google sign-in");
+        
+        // Check if Firebase is properly initialized
+        if (error.message && (
+            error.message.includes("Firebase") || 
+            error.message.includes("auth") || 
+            error.message.includes("API key")
+           )) {
+          setIsFirebaseAvailable(false);
+          setFirebaseError("Firebase authentication is unavailable. Please try again later.");
+        }
       } finally {
         setLoading(false);
       }
@@ -111,6 +122,14 @@ const Login = () => {
     e.preventDefault();
     
     if (!validateLoginForm()) return;
+    if (!isFirebaseAvailable) {
+      toast({
+        title: "Authentication Unavailable",
+        description: "Firebase authentication is currently unavailable. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setLoading(true);
     try {
@@ -124,6 +143,12 @@ const Login = () => {
         errorMessage = "Invalid email or password";
       } else if (error.code === "auth/too-many-requests") {
         errorMessage = "Too many failed login attempts. Please try again later.";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Network error. Please check your connection and try again.";
+        setIsFirebaseAvailable(false);
+      } else if (error.message && error.message.includes("Firebase")) {
+        errorMessage = "Firebase authentication service is unavailable.";
+        setIsFirebaseAvailable(false);
       }
       
       toast({
@@ -140,6 +165,14 @@ const Login = () => {
     e.preventDefault();
     
     if (!validateRegisterForm()) return;
+    if (!isFirebaseAvailable) {
+      toast({
+        title: "Authentication Unavailable",
+        description: "Firebase authentication is currently unavailable. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setLoading(true);
     try {
@@ -155,6 +188,12 @@ const Login = () => {
       let errorMessage = "Failed to register. Please try again.";
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "Email is already in use";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Network error. Please check your connection and try again.";
+        setIsFirebaseAvailable(false);
+      } else if (error.message && error.message.includes("Firebase")) {
+        errorMessage = "Firebase authentication service is unavailable.";
+        setIsFirebaseAvailable(false);
       }
       
       toast({
@@ -168,25 +207,43 @@ const Login = () => {
   };
   
   const handleGoogleSignIn = async () => {
+    if (!isFirebaseAvailable) {
+      toast({
+        title: "Authentication Unavailable",
+        description: "Firebase authentication is currently unavailable. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
     try {
       await signInWithGoogle();
-      // Não precisamos chamar handleAuthSuccess aqui
-      // O redirecionamento vai ocorrer e o usuário será tratado no useEffect
-    } catch (error) {
+      // The redirect will occur and the user will be handled in the useEffect
+    } catch (error: any) {
       console.error("Google sign-in error:", error);
+      
+      let errorMessage = "Google sign-in failed. Please try again.";
+      if (error.code === "auth/network-request-failed") {
+        errorMessage = "Network error. Please check your connection and try again.";
+        setIsFirebaseAvailable(false);
+      } else if (error.message && error.message.includes("Firebase")) {
+        errorMessage = "Firebase authentication service is unavailable.";
+        setIsFirebaseAvailable(false);
+      }
+      
       toast({
         title: "Login Failed",
-        description: "Google sign-in failed. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       setLoading(false);
     }
-    // Não chamamos setLoading(false) aqui pois há um redirecionamento
+    // We don't call setLoading(false) here because there will be a redirect
   };
   
   const handleAuthSuccess = (user: User | null) => {
-    if (!user) return; // Ignora se não tiver usuário
+    if (!user) return; // Ignore if no user
     
     toast({
       title: "Login Successful",
@@ -336,6 +393,13 @@ const Login = () => {
               </form>
             </TabsContent>
           </Tabs>
+          
+          {firebaseError && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{firebaseError}</AlertDescription>
+            </Alert>
+          )}
           
           <div className="relative mt-6">
             <div className="absolute inset-0 flex items-center">
