@@ -25,16 +25,15 @@ export class PostgresStorage implements IStorage {
   }
 
   private async initializeTables() {
-    // Tabela de usuários
+    // Tabela de usuários - já existe no banco, então vamos usar a estrutura existente
     await query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(255) NOT NULL UNIQUE,
-        password VARCHAR(255) NOT NULL,
-        display_name TEXT,
-        email TEXT,
-        photo_url TEXT,
-        uid TEXT UNIQUE
+        email VARCHAR(255),
+        avatar VARCHAR(255),
+        name VARCHAR(255),
+        uid VARCHAR(255) UNIQUE
       )
     `);
 
@@ -43,10 +42,10 @@ export class PostgresStorage implements IStorage {
       CREATE TABLE IF NOT EXISTS categories (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        icon TEXT,
-        color TEXT,
+        icon VARCHAR(255),
+        color VARCHAR(255),
         type VARCHAR(50) NOT NULL,
-        user_id TEXT NOT NULL
+        userid VARCHAR(255) NOT NULL
       )
     `);
 
@@ -98,9 +97,9 @@ export class PostgresStorage implements IStorage {
     if (adminCheckResult.rows.length === 0) {
       // Criar usuário admin para desenvolvimento
       await query(`
-        INSERT INTO users (username, password, display_name, email, uid) 
+        INSERT INTO users (username, email, name, avatar, uid) 
         VALUES ($1, $2, $3, $4, $5)
-      `, ['admin', 'admin123', 'Administrador', 'admin@fintrack.com', 'admin-dev-uid']);
+      `, ['admin', 'admin@fintrack.com', 'Administrador', 'https://ui-avatars.com/api/?name=Admin&background=10b981&color=fff', 'admin-dev-uid']);
       
       log('Usuário admin criado com sucesso', 'postgres');
       
@@ -121,7 +120,7 @@ export class PostgresStorage implements IStorage {
       
       for (const category of defaultCategories) {
         await query(`
-          INSERT INTO categories (name, icon, color, type, user_id)
+          INSERT INTO categories (name, icon, color, type, userid)
           VALUES ($1, $2, $3, $4, $5)
         `, [category.name, category.icon, category.color, category.type, 'admin-dev-uid']);
       }
@@ -166,18 +165,18 @@ export class PostgresStorage implements IStorage {
 
   // Category operations
   async getCategories(userId: string): Promise<Category[]> {
-    const result = await query('SELECT * FROM categories WHERE user_id = $1', [userId]);
+    const result = await query('SELECT * FROM categories WHERE userid = $1', [userId]);
     return result.rows as Category[];
   }
 
   async getCategoryById(id: number, userId: string): Promise<Category | undefined> {
-    const result = await query('SELECT * FROM categories WHERE id = $1 AND user_id = $2', [id, userId]);
+    const result = await query('SELECT * FROM categories WHERE id = $1 AND userid = $2', [id, userId]);
     return result.rows[0] as Category | undefined;
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
     const result = await query(
-      'INSERT INTO categories (name, icon, color, type, user_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      'INSERT INTO categories (name, icon, color, type, userid) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [category.name, category.icon, category.color, category.type, category.userId]
     );
     return result.rows[0] as Category;
@@ -185,14 +184,14 @@ export class PostgresStorage implements IStorage {
 
   async updateCategory(id: number, category: InsertCategory, userId: string): Promise<Category> {
     const result = await query(
-      'UPDATE categories SET name = $1, icon = $2, color = $3, type = $4 WHERE id = $5 AND user_id = $6 RETURNING *',
+      'UPDATE categories SET name = $1, icon = $2, color = $3, type = $4 WHERE id = $5 AND userid = $6 RETURNING *',
       [category.name, category.icon, category.color, category.type, id, userId]
     );
     return result.rows[0] as Category;
   }
 
   async deleteCategory(id: number, userId: string): Promise<void> {
-    await query('DELETE FROM categories WHERE id = $1 AND user_id = $2', [id, userId]);
+    await query('DELETE FROM categories WHERE id = $1 AND userid = $2', [id, userId]);
   }
 
   // Transaction operations
