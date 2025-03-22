@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { signInWithGoogle, loginWithEmail, registerWithEmail } from "@/lib/firebase";
+import { signInWithGoogle, loginWithEmail, registerWithEmail, checkRedirectResult } from "@/lib/firebase";
 import { User } from "firebase/auth";
 import { Wallet } from "lucide-react";
 
@@ -30,6 +30,28 @@ const Login = () => {
   
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Verificar resultado de redirecionamento quando a página carrega
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        setLoading(true);
+        const user = await checkRedirectResult();
+        if (user) {
+          handleAuthSuccess(user);
+        }
+      } catch (error) {
+        console.error("Error checking redirect result:", error);
+        // Evitar usar toast dentro do useEffect inicial
+        console.error("Failed to complete Google sign-in");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkAuth();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -148,8 +170,9 @@ const Login = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      const user = await signInWithGoogle();
-      handleAuthSuccess(user);
+      await signInWithGoogle();
+      // Não precisamos chamar handleAuthSuccess aqui
+      // O redirecionamento vai ocorrer e o usuário será tratado no useEffect
     } catch (error) {
       console.error("Google sign-in error:", error);
       toast({
@@ -157,12 +180,14 @@ const Login = () => {
         description: "Google sign-in failed. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
+    // Não chamamos setLoading(false) aqui pois há um redirecionamento
   };
   
-  const handleAuthSuccess = (user: User) => {
+  const handleAuthSuccess = (user: User | null) => {
+    if (!user) return; // Ignora se não tiver usuário
+    
     toast({
       title: "Login Successful",
       description: `Welcome ${user.displayName || user.email}!`,

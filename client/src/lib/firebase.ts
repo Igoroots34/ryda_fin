@@ -1,7 +1,8 @@
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
-  signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider, 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -44,28 +45,44 @@ const googleProvider = new GoogleAuthProvider();
 // Auth functions
 export const signInWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
-    
-    // Check if user exists in our database
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    
-    // If not, create a new user
-    if (!userDoc.exists()) {
-      await setDoc(doc(db, "users", user.uid), {
-        displayName: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL,
-        createdAt: Timestamp.now()
-      });
-      
-      // Add default categories
-      await addDefaultCategories(user.uid);
-    }
-    
-    return user;
+    // Redirect to Google sign-in page
+    await signInWithRedirect(auth, googleProvider);
+    // The user will be redirected back after sign-in
+    return null; // We'll handle the result in checkRedirectResult
   } catch (error) {
     console.error("Error signing in with Google: ", error);
+    throw error;
+  }
+};
+
+// Function to check redirect result when the page loads
+export const checkRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result) {
+      const user = result.user;
+      
+      // Check if user exists in our database
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      
+      // If not, create a new user
+      if (!userDoc.exists()) {
+        await setDoc(doc(db, "users", user.uid), {
+          displayName: user.displayName,
+          email: user.email,
+          photoURL: user.photoURL,
+          createdAt: Timestamp.now()
+        });
+        
+        // Add default categories
+        await addDefaultCategories(user.uid);
+      }
+      
+      return user;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error processing redirect result: ", error);
     throw error;
   }
 };
