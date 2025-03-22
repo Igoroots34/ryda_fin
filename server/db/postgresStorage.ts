@@ -56,7 +56,10 @@ export class PostgresStorage implements IStorage {
         name VARCHAR(255) NOT NULL,
         type VARCHAR(50) NOT NULL,
         balance DOUBLE PRECISION NOT NULL DEFAULT 0,
-        user_id TEXT NOT NULL
+        color VARCHAR(255),
+        icon VARCHAR(255),
+        isdefault BOOLEAN DEFAULT FALSE,
+        userid TEXT NOT NULL
       )
     `);
 
@@ -68,12 +71,13 @@ export class PostgresStorage implements IStorage {
         amount DOUBLE PRECISION NOT NULL,
         date TIMESTAMP NOT NULL,
         type VARCHAR(50) NOT NULL,
-        category_id INTEGER NOT NULL,
-        account_id INTEGER,
+        categoryid INTEGER NOT NULL,
+        accountid INTEGER,
         notes TEXT,
-        receipt_url TEXT,
+        paymentmethod VARCHAR(50),
         status VARCHAR(50) NOT NULL DEFAULT 'completed',
-        user_id TEXT NOT NULL
+        importid INTEGER,
+        userid TEXT NOT NULL
       )
     `);
 
@@ -196,7 +200,7 @@ export class PostgresStorage implements IStorage {
 
   // Transaction operations
   async getTransactions(userId: string, filters?: TransactionFilters): Promise<Transaction[]> {
-    let queryText = 'SELECT * FROM transactions WHERE user_id = $1';
+    let queryText = 'SELECT * FROM transactions WHERE userid = $1';
     const queryParams: any[] = [userId];
     let paramIndex = 2;
 
@@ -208,7 +212,7 @@ export class PostgresStorage implements IStorage {
       }
 
       if (filters.category !== undefined) {
-        queryText += ` AND categoryId = $${paramIndex}`;
+        queryText += ` AND categoryid = $${paramIndex}`;
         queryParams.push(filters.category);
         paramIndex++;
       }
@@ -244,7 +248,7 @@ export class PostgresStorage implements IStorage {
       }
 
       if (filters.paymentMethod) {
-        queryText += ` AND paymentMethod = $${paramIndex}`;
+        queryText += ` AND paymentmethod = $${paramIndex}`;
         queryParams.push(filters.paymentMethod);
         paramIndex++;
       }
@@ -276,20 +280,20 @@ export class PostgresStorage implements IStorage {
     }
 
     const result = await query(
-      'SELECT * FROM transactions WHERE user_id = $1 AND date BETWEEN $2 AND $3 ORDER BY date DESC LIMIT $4',
+      'SELECT * FROM transactions WHERE userid = $1 AND date BETWEEN $2 AND $3 ORDER BY date DESC LIMIT $4',
       [userId, startDate, endDate, limit]
     );
     return result.rows as Transaction[];
   }
 
   async getTransactionById(id: number, userId: string): Promise<Transaction | undefined> {
-    const result = await query('SELECT * FROM transactions WHERE id = $1 AND user_id = $2', [id, userId]);
+    const result = await query('SELECT * FROM transactions WHERE id = $1 AND userid = $2', [id, userId]);
     return result.rows[0] as Transaction | undefined;
   }
 
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     // Primeiro, verificamos se a conta existe
-    const accountResult = await query('SELECT * FROM accounts WHERE id = $1 AND user_id = $2', 
+    const accountResult = await query('SELECT * FROM accounts WHERE id = $1 AND userid = $2', 
       [transaction.accountId, transaction.userId]);
     
     if (accountResult.rows.length === 0) {
@@ -315,7 +319,7 @@ export class PostgresStorage implements IStorage {
       // Inserimos a transação
       const transResult = await client.query(
         `INSERT INTO transactions 
-        (description, amount, date, type, category_id, account_id, status, notes, receipt_url, user_id) 
+        (description, amount, date, type, categoryid, accountid, status, notes, paymentmethod, userid) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
         RETURNING *`,
         [
@@ -327,7 +331,7 @@ export class PostgresStorage implements IStorage {
           transaction.accountId, 
           transaction.status || 'completed', 
           transaction.notes, 
-          transaction.receiptUrl, 
+          transaction.paymentMethod || null,
           transaction.userId
         ]
       );
@@ -351,7 +355,7 @@ export class PostgresStorage implements IStorage {
   async updateTransaction(id: number, transaction: InsertTransaction, userId: string): Promise<Transaction> {
     // Primeiro, obtemos a transação original
     const originalTransResult = await query(
-      'SELECT * FROM transactions WHERE id = $1 AND user_id = $2',
+      'SELECT * FROM transactions WHERE id = $1 AND userid = $2',
       [id, userId]
     );
     
@@ -403,9 +407,9 @@ export class PostgresStorage implements IStorage {
       // Atualizamos a transação
       const result = await client.query(
         `UPDATE transactions SET 
-        description = $1, amount = $2, date = $3, type = $4, category_id = $5, 
-        account_id = $6, status = $7, notes = $8, receipt_url = $9
-        WHERE id = $10 AND user_id = $11 
+        description = $1, amount = $2, date = $3, type = $4, categoryid = $5, 
+        accountid = $6, status = $7, notes = $8, paymentmethod = $9
+        WHERE id = $10 AND userid = $11 
         RETURNING *`,
         [
           transaction.description, 
@@ -416,7 +420,7 @@ export class PostgresStorage implements IStorage {
           transaction.accountId, 
           transaction.status || 'completed', 
           transaction.notes, 
-          transaction.receiptUrl,
+          transaction.paymentMethod || null,
           id,
           userId
         ]
@@ -435,7 +439,7 @@ export class PostgresStorage implements IStorage {
   async deleteTransaction(id: number, userId: string): Promise<void> {
     // Primeiro, obtemos a transação
     const transResult = await query(
-      'SELECT * FROM transactions WHERE id = $1 AND user_id = $2',
+      'SELECT * FROM transactions WHERE id = $1 AND userid = $2',
       [id, userId]
     );
     
@@ -464,7 +468,7 @@ export class PostgresStorage implements IStorage {
       }
       
       // Excluir a transação
-      await client.query('DELETE FROM transactions WHERE id = $1 AND user_id = $2', [id, userId]);
+      await client.query('DELETE FROM transactions WHERE id = $1 AND userid = $2', [id, userId]);
       
       await client.query('COMMIT');
     } catch (error) {
