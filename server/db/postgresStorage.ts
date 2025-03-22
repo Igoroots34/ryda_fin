@@ -129,7 +129,7 @@ export class PostgresStorage implements IStorage {
       
       // Criar uma conta padrão para o usuário admin
       await query(`
-        INSERT INTO accounts (name, type, balance, user_id)
+        INSERT INTO accounts (name, type, balance, userid)
         VALUES ($1, $2, $3, $4)
       `, ['Conta Corrente', 'bank', 1000, 'admin-dev-uid']);
       
@@ -477,12 +477,12 @@ export class PostgresStorage implements IStorage {
 
   // Account operations
   async getAccounts(userId: string): Promise<Account[]> {
-    const result = await query('SELECT * FROM accounts WHERE user_id = $1', [userId]);
+    const result = await query('SELECT * FROM accounts WHERE userid = $1', [userId]);
     return result.rows as Account[];
   }
 
   async getAccountById(id: number, userId: string): Promise<Account | undefined> {
-    const result = await query('SELECT * FROM accounts WHERE id = $1 AND user_id = $2', [id, userId]);
+    const result = await query('SELECT * FROM accounts WHERE id = $1 AND userid = $2', [id, userId]);
     return result.rows[0] as Account | undefined;
   }
 
@@ -490,9 +490,9 @@ export class PostgresStorage implements IStorage {
     // Se esta é a primeira conta do usuário, definimos como padrão
     const userAccounts = await this.getAccounts(account.userId);
     
-    // Na tabela accounts só temos os campos name, type, balance e user_id
+    // Na tabela accounts só temos os campos name, type, balance e userid
     const result = await query(
-      'INSERT INTO accounts (name, type, balance, user_id) VALUES ($1, $2, $3, $4) RETURNING *',
+      'INSERT INTO accounts (name, type, balance, userid) VALUES ($1, $2, $3, $4) RETURNING *',
       [account.name, account.type, account.balance || 0, account.userId]
     );
     return result.rows[0] as Account;
@@ -500,7 +500,7 @@ export class PostgresStorage implements IStorage {
 
   async updateAccount(id: number, account: InsertAccount, userId: string): Promise<Account> {
     const result = await query(
-      'UPDATE accounts SET name = $1, type = $2, balance = $3 WHERE id = $4 AND user_id = $5 RETURNING *',
+      'UPDATE accounts SET name = $1, type = $2, balance = $3 WHERE id = $4 AND userid = $5 RETURNING *',
       [account.name, account.type, account.balance || 0, id, userId]
     );
     return result.rows[0] as Account;
@@ -519,7 +519,7 @@ export class PostgresStorage implements IStorage {
     
     // Verificamos se a conta existe
     const accountResult = await query(
-      'SELECT * FROM accounts WHERE id = $1 AND user_id = $2',
+      'SELECT * FROM accounts WHERE id = $1 AND userid = $2',
       [id, userId]
     );
     
@@ -528,7 +528,7 @@ export class PostgresStorage implements IStorage {
     }
     
     // Agora podemos excluir a conta
-    await query('DELETE FROM accounts WHERE id = $1 AND user_id = $2', [id, userId]);
+    await query('DELETE FROM accounts WHERE id = $1 AND userid = $2', [id, userId]);
   }
 
   // Import operations
