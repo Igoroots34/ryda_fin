@@ -93,6 +93,50 @@ export class PostgresStorage implements IStorage {
       )
     `);
 
+    // Verificando se já existe o usuário admin
+    const adminCheckResult = await query('SELECT * FROM users WHERE username = $1', ['admin']);
+    if (adminCheckResult.rows.length === 0) {
+      // Criar usuário admin para desenvolvimento
+      await query(`
+        INSERT INTO users (username, password, display_name, email, uid) 
+        VALUES ($1, $2, $3, $4, $5)
+      `, ['admin', 'admin123', 'Administrador', 'admin@fintrack.com', 'admin-dev-uid']);
+      
+      log('Usuário admin criado com sucesso', 'postgres');
+      
+      // Criar categorias padrão para o usuário admin
+      const defaultCategories = [
+        { name: 'Salário', icon: 'briefcase', color: '#10b981', type: 'income' },
+        { name: 'Investimentos', icon: 'trending-up', color: '#10b981', type: 'income' },
+        { name: 'Freelance', icon: 'code', color: '#10b981', type: 'income' },
+        { name: 'Presentes', icon: 'gift', color: '#10b981', type: 'income' },
+        { name: 'Moradia', icon: 'home', color: '#3b82f6', type: 'expense' },
+        { name: 'Alimentação', icon: 'utensils', color: '#f59e0b', type: 'expense' },
+        { name: 'Transporte', icon: 'car', color: '#f59e0b', type: 'expense' },
+        { name: 'Entretenimento', icon: 'film', color: '#8b5cf6', type: 'expense' },
+        { name: 'Serviços', icon: 'zap', color: '#ef4444', type: 'expense' },
+        { name: 'Saúde', icon: 'activity', color: '#ef4444', type: 'expense' },
+        { name: 'Dívidas', icon: 'credit-card', color: '#ef4444', type: 'expense' },
+      ];
+      
+      for (const category of defaultCategories) {
+        await query(`
+          INSERT INTO categories (name, icon, color, type, user_id)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [category.name, category.icon, category.color, category.type, 'admin-dev-uid']);
+      }
+      
+      log('Categorias padrão criadas para o usuário admin', 'postgres');
+      
+      // Criar uma conta padrão para o usuário admin
+      await query(`
+        INSERT INTO accounts (name, type, balance, user_id)
+        VALUES ($1, $2, $3, $4)
+      `, ['Conta Corrente', 'bank', 1000, 'admin-dev-uid']);
+      
+      log('Conta padrão criada para o usuário admin', 'postgres');
+    }
+
     log('Tabelas do PostgreSQL inicializadas com sucesso', 'postgres');
   }
 

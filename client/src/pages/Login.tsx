@@ -122,17 +122,54 @@ const Login = () => {
     e.preventDefault();
     
     if (!validateLoginForm()) return;
-    if (!isFirebaseAvailable) {
-      toast({
-        title: "Authentication Unavailable",
-        description: "Firebase authentication is currently unavailable. Please try again later.",
-        variant: "destructive",
-      });
-      return;
-    }
     
     setLoading(true);
     try {
+      // Tenta login com Admin primeiro (se as credenciais corresponderem)
+      if (loginData.email === "admin@fintrack.com" && loginData.password === "admin123") {
+        try {
+          const response = await fetch("/api/auth/dev-login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              username: "admin",
+              password: "admin123",
+            }),
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            // Salvar token no localStorage para uso em todo o app
+            localStorage.setItem("authToken", data.token);
+            localStorage.setItem("userId", data.user.uid);
+            localStorage.setItem("userProfile", JSON.stringify(data.user));
+            
+            toast({
+              title: "Login Successful",
+              description: `Welcome ${data.user.displayName || "Admin"}!`,
+            });
+            
+            setLocation("/dashboard");
+            return;
+          }
+        } catch (devLoginError) {
+          console.error("Dev login error:", devLoginError);
+          // Continue com o fluxo normal se o login admin falhar
+        }
+      }
+      
+      // Login normal via Firebase se não for admin ou o login admin falhar
+      if (!isFirebaseAvailable) {
+        toast({
+          title: "Authentication Unavailable",
+          description: "Firebase authentication is currently unavailable. Please try again later.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const user = await loginWithEmail(loginData.email, loginData.password);
       handleAuthSuccess(user);
     } catch (error: any) {

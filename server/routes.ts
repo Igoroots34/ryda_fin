@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { verifyFirebaseToken } from "./firebase-admin";
@@ -7,10 +7,26 @@ import { processImport, getImports, getImport, deleteImport } from "./services/i
 import { z } from "zod";
 import { insertTransactionSchema, insertImportSchema } from "@shared/schema";
 
+// Estendendo o tipo Request para incluir usuário autenticado
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
+
 // Middleware to verify Firebase authentication
-const authMiddleware = async (req: any, res: any, next: any) => {
+const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
+    
+    // Special case for dev token
+    if (authHeader === "Bearer dev-token") {
+      // Configurar um usuário para desenvolvimento
+      req.user = { uid: "admin-dev-uid" };
+      return next();
+    }
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ message: "Unauthorized - No token provided" });
@@ -29,6 +45,39 @@ const authMiddleware = async (req: any, res: any, next: any) => {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
+  
+  // Auth endpoint for development
+  app.post("/api/auth/dev-login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      // Verificar se as credenciais são válidas
+      if (username === 'admin' && password === 'admin123') {
+        // Buscar o usuário pelo username
+        const user = await storage.getUserByUsername(username);
+        
+        if (user) {
+          // Retornar um mock de usuário Firebase com ID de usuário do banco
+          res.json({
+            user: {
+              uid: user.uid,
+              displayName: user.displayName,
+              email: user.email,
+              photoURL: user.photoURL
+            },
+            token: "dev-token" // Token fictício para desenvolvimento
+          });
+        } else {
+          res.status(404).json({ message: "User not found" });
+        }
+      } else {
+        res.status(401).json({ message: "Invalid credentials" });
+      }
+    } catch (error) {
+      console.error("Dev login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
   
   // Dashboard endpoints
   app.get("/api/dashboard", authMiddleware, async (req, res) => {
