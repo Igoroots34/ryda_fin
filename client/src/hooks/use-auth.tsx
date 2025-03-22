@@ -30,25 +30,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             auth, 
             (user) => {
               unsubscribe();
+              // Redirect to dashboard in development environment
+              if (import.meta.env.DEV && user) {
+                window.location.href = '/dashboard';
+              }
               resolve(user);
             },
             (error) => {
               unsubscribe();
               console.error("Auth state error:", error);
-              // Don't reject, just resolve with null to continue the app flow
               resolve(null);
             }
           );
         } catch (err) {
           console.error("Failed to set up auth state listener:", err);
-          // Don't reject, just resolve with null to allow the app to load anyway
           resolve(null);
         }
       });
     },
     staleTime: Infinity,
-    retry: false, // Don't retry on failure
-    refetchOnWindowFocus: false, // Don't refetch when window gets focus
+    retry: false, 
+    refetchOnWindowFocus: false, 
   });
 
   const value = {
