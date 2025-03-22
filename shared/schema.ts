@@ -6,10 +6,9 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  displayName: text("display_name"),
   email: text("email"),
-  photoURL: text("photo_url"),
+  avatar: text("avatar"),
+  name: text("name"),
   uid: text("uid").unique(),
 });
 
@@ -63,10 +62,9 @@ export const imports = pgTable("imports", {
 // Create Zod schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
-  password: true,
-  displayName: true,
   email: true,
-  photoURL: true,
+  avatar: true,
+  name: true,
   uid: true,
 });
 

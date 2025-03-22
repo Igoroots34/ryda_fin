@@ -158,8 +158,8 @@ export class PostgresStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const result = await query(
-      'INSERT INTO users (username, password, display_name, email, photo_url, uid) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [user.username, user.password, user.displayName, user.email, user.photoURL, user.uid]
+      'INSERT INTO users (username, email, name, avatar, uid) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [user.username, user.email, user.name, user.avatar, user.uid]
     );
     return result.rows[0] as User;
   }

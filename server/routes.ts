@@ -61,9 +61,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.json({
             user: {
               uid: user.uid,
-              displayName: user.displayName,
+              displayName: user.name,
               email: user.email,
-              photoURL: user.photoURL
+              photoURL: user.avatar
             },
             token: "dev-token" // Token fictício para desenvolvimento
           });
