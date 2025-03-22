@@ -19,17 +19,21 @@ const LoadingScreen = () => (
 );
 
 // Protected Route component to handle authenticated routes
-const ProtectedRoute = ({ component: Component }: { component: React.ComponentType<any> }) => {
+const ProtectedRoute = ({
+  component: Component,
+}: {
+  component: React.ComponentType<any>;
+}) => {
   const { user, loading } = useAuth();
-  
+
   // Show loading screen while auth state is being determined
   if (loading) return <LoadingScreen />;
-  
+
   // If user is not authenticated, show login page
   if (!user) {
     return <Login />;
   }
-  
+
   // User is authenticated, show the requested component
   return <Component />;
 };
@@ -46,31 +50,31 @@ function App() {
         <Route path="/login">
           <Login />
         </Route>
-        
+
         <Route path="/dashboard">
           <AppLayout>
             <ProtectedRoute component={Dashboard} />
           </AppLayout>
         </Route>
-        
+
         <Route path="/transactions">
           <AppLayout>
             <ProtectedRoute component={Transactions} />
           </AppLayout>
         </Route>
-        
+
         <Route path="/import">
           <AppLayout>
             <ProtectedRoute component={Import} />
           </AppLayout>
         </Route>
-        
+
         <Route path="/">
           <AppLayout>
             <ProtectedRoute component={Dashboard} />
           </AppLayout>
         </Route>
-        
+
         <Route>
           <AppLayout>
             <NotFound />
