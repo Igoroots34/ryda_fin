@@ -1,6 +1,4 @@
 import { Switch, Route, Redirect, useLocation } from "wouter";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import AppLayout from "@/components/layout/AppLayout";
 import Login from "@/pages/Login";
@@ -26,39 +24,37 @@ const ProtectedRoute = ({ component: Component, ...rest }: { component: React.Co
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Switch>
-        <Route path="/login" component={Login} />
-        
-        <Route path="/">
-          <Redirect to="/dashboard" />
-        </Route>
-        
-        <Route path="/dashboard">
-          <AppLayout>
-            <ProtectedRoute component={Dashboard} />
-          </AppLayout>
-        </Route>
-        
-        <Route path="/transactions">
-          <AppLayout>
-            <ProtectedRoute component={Transactions} />
-          </AppLayout>
-        </Route>
-        
-        <Route path="/import">
-          <AppLayout>
-            <ProtectedRoute component={Import} />
-          </AppLayout>
-        </Route>
-        
-        <Route>
-          <AppLayout>
-            <NotFound />
-          </AppLayout>
-        </Route>
-      </Switch>
-    </QueryClientProvider>
+    <Switch>
+      <Route path="/login" component={Login} />
+      
+      <Route path="/">
+        <Redirect to="/dashboard" />
+      </Route>
+      
+      <Route path="/dashboard">
+        <AppLayout>
+          <ProtectedRoute component={Dashboard} />
+        </AppLayout>
+      </Route>
+      
+      <Route path="/transactions">
+        <AppLayout>
+          <ProtectedRoute component={Transactions} />
+        </AppLayout>
+      </Route>
+      
+      <Route path="/import">
+        <AppLayout>
+          <ProtectedRoute component={Import} />
+        </AppLayout>
+      </Route>
+      
+      <Route>
+        <AppLayout>
+          <NotFound />
+        </AppLayout>
+      </Route>
+    </Switch>
   );
 }
 
